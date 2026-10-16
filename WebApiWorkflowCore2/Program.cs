@@ -8,7 +8,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 
-builder.Services.AddWorkflow();
+builder.Services.AddWorkflow(x =>
+    x.UseSqlServer(builder.Configuration.GetConnectionString("WorkflowCoreDB"), true, true)
+);
 
 // Register all steps in the assembly
 var steps = Assembly.GetExecutingAssembly().GetTypes()
@@ -31,8 +33,10 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 
-app.MapGet("start-hello-workflow", async (IWorkflowHost host) => {
-    string workflowId = await host.StartWorkflow(nameof(HelloWorkflow));
+app.MapGet("start-hello-workflow/{user}", async (IWorkflowHost host, string user) => {
+
+    string workflowId = await host.StartWorkflow(nameof(HelloWorkflow), 
+        new HelloWorkflowState { UserName = user });
     return Results.Ok($"Workflow id: {workflowId}");
 });
 
@@ -42,7 +46,7 @@ app.MapGet("start-hello-workflow", async (IWorkflowHost host) => {
 var workflowHost = app.Services.GetService<IWorkflowHost>();
 
 // zarejestrowac wszystkie workflowy
-workflowHost?.RegisterWorkflow<HelloWorkflow>();
+workflowHost?.RegisterWorkflow<HelloWorkflow, HelloWorkflowState>();
 
 workflowHost?.Start();  // startujemy host
 
